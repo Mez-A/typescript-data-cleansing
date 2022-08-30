@@ -20,6 +20,10 @@ function App() {
 
     const userIsAdmin = true;
 
+    const getHasError = (rawBook:any, _language:string) => {
+      return ["english", "french"].includes(_language) ? false : true
+    }
+
     useEffect(() => {
         (async () => {
             const rawBooks = (await axios.get(url)).data;
@@ -35,9 +39,7 @@ function App() {
                     language: _language,
                     yearMonth: rawBook.yearMonth,
                     numberInStock: rawBook.numberInStock,
-                    hasError: ["english", "french"].includes(_language)
-                        ? false
-                        : true,
+                    hasError: getHasError(rawBook, _language),
                 };
                 _books.push(book);
             });
