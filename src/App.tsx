@@ -8,6 +8,12 @@ const url =
 function App() {
     const [books, setBooks] = useState<IBook[]>([]);
 
+    enum Status {
+      hasError,
+      noError,
+      unknown
+    }
+
     interface IBook {
         id: number;
         title: string;
@@ -15,13 +21,17 @@ function App() {
         language: string;
         yearMonth: string;
         numberInStock: number;
-        hasError: boolean;
+        status: Status
     }
 
     const userIsAdmin = true;
 
-    const getHasError = (rawBook:any, _language:string) => {
-      return ["english", "french"].includes(_language) ? false : true
+    const getHasError = (rawBook:any, _language:string, _numberInStock:(number|undefined)):Status => {
+      let numberInStockIsBad = !rawBook.numberInStock
+      if (_numberInStock === undefined) {
+         numberInStockIsBad = true;
+      }
+      return !["english", "french"].includes(_language) || !rawBook.description || numberInStockIsBad || !rawBook.title ? Status.hasError : Status.noError;
     }
 
     useEffect(() => {
@@ -29,9 +39,19 @@ function App() {
             const rawBooks = (await axios.get(url)).data;
             const _books: IBook[] = [];
             rawBooks.forEach((rawBook: any) => {
+              //language
                 const _language = rawBook.language
                     ? rawBook.language
                     : "english";
+              //numbers in Stock
+              let _numberInStock:(number | undefined) = 0
+                if(typeof(rawBook.numberInStock) === 'string') {
+                  _numberInStock = Number(rawBook.numberInStock)
+                  console.log(_numberInStock);
+                  if (Number.isNaN(_numberInStock)){
+                    _numberInStock = undefined
+                  }          
+      } 
                 const book: IBook = {
                     id: rawBook.id,
                     title: rawBook.title,
@@ -39,7 +59,7 @@ function App() {
                     language: _language,
                     yearMonth: rawBook.yearMonth,
                     numberInStock: rawBook.numberInStock,
-                    hasError: getHasError(rawBook, _language),
+                    status: getHasError(rawBook, _language, _numberInStock),
                 };
                 _books.push(book);
             });
@@ -48,15 +68,20 @@ function App() {
     }, []);
 
     const bookIsAllowedToShow = (book:IBook) => {
-        if (!book.hasError ||userIsAdmin) {
-            return true;
-        } else {
+      if (userIsAdmin) {
+        return true;
+      } else {
+
+        if (book.status === Status.hasError) {
             return false;
+        } else {
+            return true;
         }
+      }
     };
 
     const getClassesForBook = (book:IBook) => {
-      if (userIsAdmin && book.hasError) {
+      if (userIsAdmin && book.status === Status.hasError) {
         return 'book error'
       } else {
         return 'book allowed'
@@ -70,9 +95,9 @@ function App() {
             <div className="bookArea">
                 {books.map((book, i) => {
                     return (
-                        <>
+                        <div key={i}>
                             {bookIsAllowedToShow(book) && (
-                                <fieldset className={getClassesForBook(book)} key={i}>
+                                <fieldset className={getClassesForBook(book)}>
                                     <legend>ID: {book.id}</legend>
                                     <div className="row">
                                         <label>Title</label>
@@ -100,7 +125,7 @@ function App() {
                                     </div>
                                 </fieldset>
                             )}
-                        </>
+                        </div>
                     );
                 })}
             </div>
